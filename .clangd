@@ -1,0 +1,6 @@
+CompileFlags:
+  CompilationDatabase: builddir/compile_commands.json
+
+Diagnostics:
+  ClangTidy:
+    Add: modernize* bugprone* performance* readability* cppcoreguidelines*

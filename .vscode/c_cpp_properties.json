@@ -1,0 +1,32 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/include",
+                "/usr/local/include",
+                "/usr/include"
+            ],
+            "defines": [],
+            "cStandard": "c23",
+            "cppStandard": "c++23",
+            "intelliSenseMode": "linux-clang-x64",
+            "configurationProvider": "mesonbuild.mesonbuild",
+            "compilerPath": "/usr/bin/clang",
+            "compileCommands": [
+                "${workspaceFolder}/builddir/compile_commands.json"
+            ],
+            "mergeConfigurations": true,
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/**",
+                    "${workspaceFolder}/include",
+                    "/usr/include",
+                    "/usr/local/include"
+                ]
+            }
+        }
+    ],
+    "version": 4
+}

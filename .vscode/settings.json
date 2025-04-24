@@ -1,0 +1,26 @@
+{
+    "C_Cpp.default.configurationProvider": "mesonbuild.mesonbuild",
+    "C_Cpp.default.compileCommands": "/home/nathan/workspaces/nth/faster/builddir/compile_commands.json",
+    "files.associations": {
+        "type_traits": "cpp",
+        "utility": "cpp",
+        "cstdint": "c",
+        "stddef.h": "c",
+        "vector": "c",
+        "text_encoding": "c",
+        "typeinfo": "c",
+        "faster_avl.h": "c",
+        "stdlib.h": "c",
+        "variant": "c",
+        "array": "c",
+        "charconv": "c",
+        "compare": "c",
+        "functional": "c",
+        "ratio": "c",
+        "tuple": "c"
+    },
+    "clangd.fallbackFlags": [
+        "-I${workspaceFolder}/include",
+        "-I${workspaceFolder}/src",
+    ]
+}
