@@ -6,7 +6,6 @@
 #if FASTER_UNICODE_SUPPORT != FASTER_UNICODE_SUPPORT_NONE
 // Convert multibyte string to Unicode (fchar_t)
 // return number of bytes written to dest
-
 size_t faster_mb_to_unicode(const char *src, fchar_t *_dest, size_t dest_size) {
   if (!src || !_dest || dest_size == 0)
     return 0;
@@ -52,6 +51,7 @@ size_t faster_mb_to_unicode(const char *src, fchar_t *_dest, size_t dest_size) {
 }
 
 // Convert Unicode (fchar_t) to multibyte string
+// return number of bytes written to dest
 size_t faster_unicode_to_mb(const fchar_t *src, char *dest, size_t dest_size) {
   if (!src || !dest || dest_size == 0)
     return 0;
