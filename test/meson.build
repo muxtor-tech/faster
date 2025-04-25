@@ -1,10 +1,10 @@
 # compilation test
 test(
-    'basics-non-unicode',
+    'multibyte-non-unicode',
     executable(
         'test-binary-0nu',
         [
-            'basic-unit.c',
+            'mb-unit.c',
             '../src/avl.c',
             '../src/core.c',
             '../src/ast.c',
@@ -16,11 +16,11 @@ test(
     ),
 )
 test(
-    'basics-utf8',
+    'multibyte-utf8',
     executable(
         'test-binary-0u8',
         [
-            'basic-unit.c',
+            'mb-unit.c',
             '../src/avl.c',
             '../src/core.c',
             '../src/ast.c',
@@ -32,11 +32,11 @@ test(
     ),
 )
 test(
-    'basics-utf16',
+    'multibyte-utf16',
     executable(
         'test-binary-0u16',
         [
-            'basic-unit.c',
+            'mb-unit.c',
             '../src/avl.c',
             '../src/core.c',
             '../src/ast.c',
@@ -48,11 +48,11 @@ test(
     ),
 )
 test(
-    'basics-utf32',
+    'multibyte-utf32',
     executable(
         'test-binary-0u32',
         [
-            'basic-unit.c',
+            'mb-unit.c',
             '../src/avl.c',
             '../src/core.c',
             '../src/ast.c',

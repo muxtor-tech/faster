@@ -1,8 +1,8 @@
 #ifdef FASTER_AST_INCLUDE
 #else
 
-#include "faster_avl.h"
 #include "faster_core.h"
+#include "faster_avl.h"
 #include "faster_is.h"
 
 enum faster_token_type_e {

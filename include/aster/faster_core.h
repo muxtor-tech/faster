@@ -15,6 +15,40 @@
 #define FASTER_VERSION_PATCH 0
 #define FASTER_VERSION_STRING "0.1.0"
 
+#if FASTER_UNICODE_SUPPORT == FASTER_UNICODE_SUPPORT_AUTODETECT
+#undef FASTER_UNICODE_SUPPORT
+
+// Auto-detect based on platform and C23 capabilities
+#if (defined(__STDC_HOSTED__) && __STDC_HOSTED__ == 0) // Embedded-like systems
+#if defined(__STDC_UTF_8__) && __STDC_VERSION__ >= 202311L
+#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_ONE_BYTE
+#else
+#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_NONE
+#endif
+#else                       // Hosted systems
+#if INTPTR_MAX == INT32_MAX // 32-bit platforms
+#if defined(__STDC_UTF_16__)
+#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_TWO_BYTE
+#elif defined(__STDC_UTF_32__) // Secondary fallback
+#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_FOUR_BYTE
+#else
+#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_NONE
+#endif
+#elif INTPTR_MAX == INT64_MAX // 64-bit platforms
+#if defined(__STDC_UTF_32__)
+#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_FOUR_BYTE
+#elif defined(__STDC_UTF_16__) // Secondary fallback
+#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_TWO_BYTE
+#else
+#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_NONE
+#endif
+#else // Unknown architecture
+#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_NONE
+#endif
+#endif
+
+#endif
+
 // we don't need the c++ compatibility warning
 // the complaint about charx_t is a false positive
 
@@ -28,7 +62,7 @@
 #pragma GCC diagnostic ignored "-Wc++-compat"
 typedef char8_t fchar_t;
 #pragma GCC diagnostic pop
-static_assert(sizeof(fchar_t) == 1, "unicode support not possible, fchar_t must be at least 1 byte");
+static_assert(sizeof(fchar_t) == 1, "unicode 8bit support not possible, fchar_t must be at least 1 byte");
 #elif FASTER_UNICODE_SUPPORT == FASTER_UNICODE_SUPPORT_TWO_BYTE
 #include <uchar.h>
 #define FASTER_UNICODE_MB_TO_UC_FUNC mbrtoc16
@@ -39,7 +73,7 @@ static_assert(sizeof(fchar_t) == 1, "unicode support not possible, fchar_t must 
 #pragma GCC diagnostic ignored "-Wc++-compat"
 typedef char16_t fchar_t;
 #pragma GCC diagnostic pop
-static_assert(sizeof(fchar_t) >= 2, "unicode support not possible, fchar_t must be at least 2 bytes");
+static_assert(sizeof(fchar_t) >= 2, "unicode 16bit support not possible, fchar_t must be at least 2 bytes");
 #elif FASTER_UNICODE_SUPPORT == FASTER_UNICODE_SUPPORT_FOUR_BYTE
 #include <uchar.h>
 #define FASTER_UNICODE_MB_TO_UC_FUNC mbrtoc32
@@ -50,7 +84,7 @@ static_assert(sizeof(fchar_t) >= 2, "unicode support not possible, fchar_t must 
 #pragma GCC diagnostic ignored "-Wc++-compat"
 typedef char32_t fchar_t;
 #pragma GCC diagnostic pop
-static_assert(sizeof(fchar_t) >= 4, "unicode support not possible, fchar_t must be at least 2 bytes");
+static_assert(sizeof(fchar_t) >= 4, "unicode 32bit support not possible, fchar_t must be at least 4 bytes");
 #else // no unicode support
 #define ASTER_TEXT(s) s
 #define faster_sprintf(s, mem, f, ...) sprintf(s, ASTER_TEXT(f), __VA_ARGS__)
