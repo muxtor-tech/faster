@@ -1,8 +1,8 @@
 #ifdef FASTER_AST_INCLUDE
 #else
 
-#include "faster_core.h"
 #include "faster_avl.h"
+#include "faster_core.h"
 #include "faster_is.h"
 
 enum faster_token_type_e {
@@ -120,16 +120,16 @@ typedef struct faster_ast_t_s *faster_ast_ptr_t;
                        .context_tree = name##_faster_ast_context_tree,                                                             \
                        .ast_root_id = FASTER_ARRAY_COUNT_INVALID.float_list = name##_float_array.runtime_state = {0}}
 
+#define FASTER_VALUE_STORE_FLOAT(ast, float_value)                                                                                 \
+  (faster_value_ptr)(                                                                                                              \
+      ((faster_value_ptr_handler_t)ast->float_list.list + faster_value_float_holder_t_arr_get_next(&ast->float_list)) |            \
+      FASTER_VALUE_MARKER_FLO)
+
 faster_error_code_t faster_ast_init(faster_ast_ptr_t ast);
 faster_error_code_t faster_ast_free(faster_ast_ptr_t ast);
 faster_error_code_t faster_tokenize(faster_ast_ptr_t ast, const faster_str_ptr_t str);
 faster_error_code_t faster_parse(faster_ast_ptr_t ast);
 faster_error_code_t faster_execute(faster_ast_ptr_t ast, faster_value_ptr *result);
-
-#define FASTER_VALUE_STORE_FLOAT(ast, float_value)                                                                                 \
-  (faster_value_ptr)(                                                                                                              \
-      ((faster_value_ptr_handler_t)ast->float_list.list + faster_value_float_holder_t_arr_get_next(&ast->float_list)) |            \
-      FASTER_VALUE_MARKER_FLO)
 
 #define FASTER_AST_INCLUDE
 #endif // FASTER_AST_INCLUDE

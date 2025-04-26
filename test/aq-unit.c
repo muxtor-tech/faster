@@ -1,5 +1,4 @@
 #include <pthread.h>
-#include <stdatomic.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -21,9 +20,9 @@
 
 // Define a queue for integers with a size of QUEUE_SIZE and alignment of 4
 // bytes
-DECLARE_FAST_ATOMIC_FIFO_QUEUE(int, IntQueue, QUEUE_SIZE, 4)
+DECLARE_FAST_ATOMIC_FIFO_QUEUE(int, IntQueue, QUEUE_SIZE)
 
-IntQueue queue;
+IntQueue_t queue;
 
 void *producer(void *arg) {
   int id = *(int *)arg;
@@ -51,7 +50,7 @@ void *consumer(void *arg) {
   return NULL;
 }
 
-void producer2(IntQueue *queue, int id) {
+void producer2(IntQueue_t *queue, int id) {
   for (int i = 0; i < ITEMS_PER_PRODUCER; ++i) {
     int item = id * ITEMS_PER_PRODUCER + i;
     while (IntQueue_enqueue(queue, &item) == -1) {
@@ -61,7 +60,7 @@ void producer2(IntQueue *queue, int id) {
   }
 }
 
-void consumer2(IntQueue *queue) {
+void consumer2(IntQueue_t *queue) {
   for (int i = 0; i < (NUM_PRODUCERS * ITEMS_PER_PRODUCER) / NUM_CONSUMERS; ++i) {
     int item;
     while (IntQueue_dequeue(queue, &item) == -1) {
@@ -125,13 +124,13 @@ int main() {
   }
 
   // Set the size of the shared memory object
-  if (ftruncate(shm_fd, (off_t)(sizeof(IntQueue) + sizeof(IntQueue_StaticBuffer))) == -1) {
+  if (ftruncate(shm_fd, (off_t)(sizeof(IntQueue_t) + sizeof(IntQueue_StaticBuffer))) == -1) {
     perror("ftruncate");
     exit(EXIT_FAILURE);
   }
 
   // Map the shared memory object
-  void *shm_ptr = mmap(0, sizeof(IntQueue) + sizeof(IntQueue_StaticBuffer), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+  void *shm_ptr = mmap(0, sizeof(IntQueue_t) + sizeof(IntQueue_StaticBuffer), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
   if (shm_ptr == MAP_FAILED) {
     perror("mmap");
     exit(EXIT_FAILURE);
@@ -139,8 +138,8 @@ int main() {
 
   // initialize the queue with static buffer allocated in the shared memory
   // block
-  IntQueue *queue2 = (IntQueue *)shm_ptr;
-  IntQueue_StaticBuffer *buffer2 = (IntQueue_StaticBuffer *)(shm_ptr + sizeof(IntQueue));
+  IntQueue_t *queue2 = (IntQueue_t *)shm_ptr;
+  IntQueue_StaticBuffer *buffer2 = (IntQueue_StaticBuffer *)(shm_ptr + sizeof(IntQueue_t));
   IntQueue_init_static(queue2, buffer2);
 
   pid_t pids[NUM_PRODUCERS + NUM_CONSUMERS];
@@ -173,7 +172,7 @@ int main() {
   }
 
   // Unmap the shared memory
-  if (munmap(shm_ptr, sizeof(IntQueue) + sizeof(IntQueue_StaticBuffer)) == -1) {
+  if (munmap(shm_ptr, sizeof(IntQueue_t) + sizeof(IntQueue_StaticBuffer)) == -1) {
     perror("munmap");
     exit(EXIT_FAILURE);
   }

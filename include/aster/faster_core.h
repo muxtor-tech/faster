@@ -10,95 +10,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "faster_str.h"
+
 #define FASTER_VERSION_MAJOR 0
 #define FASTER_VERSION_MINOR 1
 #define FASTER_VERSION_PATCH 0
 #define FASTER_VERSION_STRING "0.1.0"
-
-#if FASTER_UNICODE_SUPPORT == FASTER_UNICODE_SUPPORT_AUTODETECT
-#undef FASTER_UNICODE_SUPPORT
-
-// Auto-detect based on platform and C23 capabilities
-#if (defined(__STDC_HOSTED__) && __STDC_HOSTED__ == 0) // Embedded-like systems
-#if defined(__STDC_UTF_8__) && __STDC_VERSION__ >= 202311L
-#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_ONE_BYTE
-#else
-#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_NONE
-#endif
-#else                       // Hosted systems
-#if INTPTR_MAX == INT32_MAX // 32-bit platforms
-#if defined(__STDC_UTF_16__)
-#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_TWO_BYTE
-#elif defined(__STDC_UTF_32__) // Secondary fallback
-#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_FOUR_BYTE
-#else
-#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_NONE
-#endif
-#elif INTPTR_MAX == INT64_MAX // 64-bit platforms
-#if defined(__STDC_UTF_32__)
-#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_FOUR_BYTE
-#elif defined(__STDC_UTF_16__) // Secondary fallback
-#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_TWO_BYTE
-#else
-#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_NONE
-#endif
-#else // Unknown architecture
-#define FASTER_UNICODE_SUPPORT FASTER_UNICODE_SUPPORT_NONE
-#endif
-#endif
-
-#endif
-
-// we don't need the c++ compatibility warning
-// the complaint about charx_t is a false positive
-
-#if FASTER_UNICODE_SUPPORT == FASTER_UNICODE_SUPPORT_ONE_BYTE
-#include <uchar.h>
-#define FASTER_UNICODE_MB_TO_UC_FUNC mbrtoc8
-#define FASTER_UNICODE_UC_TO_MB_FUNC c8rtomb
-#define FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_VALUE u8"�"
-#define ASTER_TEXT(s) u8##s
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wc++-compat"
-typedef char8_t fchar_t;
-#pragma GCC diagnostic pop
-static_assert(sizeof(fchar_t) == 1, "unicode 8bit support not possible, fchar_t must be at least 1 byte");
-#elif FASTER_UNICODE_SUPPORT == FASTER_UNICODE_SUPPORT_TWO_BYTE
-#include <uchar.h>
-#define FASTER_UNICODE_MB_TO_UC_FUNC mbrtoc16
-#define FASTER_UNICODE_UC_TO_MB_FUNC c16rtomb
-#define FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_VALUE 0xFFFD
-#define ASTER_TEXT(s) u##s
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wc++-compat"
-typedef char16_t fchar_t;
-#pragma GCC diagnostic pop
-static_assert(sizeof(fchar_t) >= 2, "unicode 16bit support not possible, fchar_t must be at least 2 bytes");
-#elif FASTER_UNICODE_SUPPORT == FASTER_UNICODE_SUPPORT_FOUR_BYTE
-#include <uchar.h>
-#define FASTER_UNICODE_MB_TO_UC_FUNC mbrtoc32
-#define FASTER_UNICODE_UC_TO_MB_FUNC c32rtomb
-#define FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_VALUE 0xFFFD
-#define ASTER_TEXT(s) U##s
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wc++-compat"
-typedef char32_t fchar_t;
-#pragma GCC diagnostic pop
-static_assert(sizeof(fchar_t) >= 4, "unicode 32bit support not possible, fchar_t must be at least 4 bytes");
-#else // no unicode support
-#define ASTER_TEXT(s) s
-#define faster_sprintf(s, mem, f, ...) sprintf(s, ASTER_TEXT(f), __VA_ARGS__)
-typedef char fchar_t;
-static_assert(sizeof(fchar_t) == 1, "wider char available, consider a switch to unicode support");
-#endif
-
-#define FASTER_STRING_MEMORY_SIZE(strlen) (sizeof(fchar_t) * strlen)
-
-#define FASTER_DECLARE_RAW_STR(name, str) static const fchar_t name[] = ASTER_TEXT(str)
-
-#define FASTER_DECLARE_FASTER_STR(name, str)                                                                                       \
-  FASTER_DECLARE_RAW_STR(_##name##_rawstr, str);                                                                                   \
-  static const faster_str_t name = {_##name##_rawstr, sizeof(_##name##_rawstr) / sizeof(fchar_t)}
 
 #define FAST_LIMIT_INT_MAX (INTPTR_MAX >> 2)
 #define FAST_LIMIT_INT_MIN (INTPTR_MIN >> 2)
@@ -122,6 +39,9 @@ typedef void *faster_value_ptr;
 #define FASTER_ALIGNED_UNPACKED __attribute__((aligned(FASTER_ALIGNMENT_BASE)))
 
 #define FASTER_REALLOCATOR(ptr, len, context) realloc(ptr, len)
+
+#define FASTER_INCEMENT_POINTER_BY_SIZED_ELEMENT(ptr, elements, element_size)                                                      \
+  ((faster_value_ptr)((char *)(ptr) + (elements * element_size)))
 
 static_assert(sizeof(faster_value_ptr_handler_t) == sizeof(faster_value_int_holder_t),
               "faster_value_ptr_handler_t and faster_value_int_holder_t must "
@@ -200,57 +120,38 @@ static inline faster_indexing_t _assume_within_range(const size_t value) {
     faster_array_header_t list_header;                                                                                             \
     type *list;                                                                                                                    \
   } FASTER_ALIGNED;                                                                                                                \
+  static_assert(sizeof(type) % FASTER_ALIGNMENT_BASE == 0, "Type must be aligned to FASTER_ALIGNMENT_BASE");                       \
+  static_assert(sizeof(struct faster_array_for_##type##_t_s) == sizeof(_faster_default_array_t));                                  \
   typedef struct faster_array_for_##type##_t_s type##_arr_t;                                                                       \
   typedef struct faster_array_for_##type##_t_s *type##_arr_ptr_t;                                                                  \
-  [[maybe_unused]] static void type##_arr_reset_and_free(type##_arr_ptr_t v, faster_indexing_t initial_capacity) {                 \
-    free(v->list);                                                                                                                 \
-    v->list = NULL;                                                                                                                \
-    faster_array_header_t tmp = _SUB_DECLARE_ARRAY_HEADER(initial_capacity);                                                       \
-    v->list_header = tmp;                                                                                                          \
+  [[maybe_unused]] static inline void type##_arr_reset_and_free(type##_arr_ptr_t v, faster_indexing_t initial_capacity) {          \
+    _arr_reset_and_free((_faster_default_array_ptr_t)v, initial_capacity);                                                         \
   }                                                                                                                                \
-  [[maybe_unused]] static faster_indexing_t type##_arr_count(type##_arr_ptr_t v) {                                                 \
-    return (v->list == NULL) ? 0 : v->list_header.array_internal;                                                                  \
+  [[maybe_unused]] static inline faster_indexing_t type##_arr_count(type##_arr_ptr_t v) {                                          \
+    return _arr_count((_faster_default_array_ptr_t)v);                                                                             \
   }                                                                                                                                \
-  [[maybe_unused]] static faster_indexing_t type##_arr_get_next(type##_arr_ptr_t v) {                                              \
-    if (v->list_header.next_free_index == FASTER_ARRAY_COUNT_INVALID) {                                                            \
-      size_t new_size;                                                                                                             \
-      new_size = faster_get_optimal_block_size(                                                                                    \
-          sizeof(type), v->list_header.array_capacity +                                                                            \
-                            ((v->list == NULL) ? v->list_header.array_internal                                                     \
-                                               : faster_get_optimal_growth_increment(v->list_header.array_capacity)));             \
-      type *tmp = (type *)FASTER_REALLOCATOR(v->list, new_size, NULL);                                                             \
-      if (tmp == NULL) {                                                                                                           \
-        return FASTER_ARRAY_COUNT_INVALID;                                                                                         \
-      }                                                                                                                            \
-      faster_indexing_t new_capacity = _assume_within_range(new_size / sizeof(type));                                              \
-      if (new_capacity == 0) {                                                                                                     \
-        return FASTER_ARRAY_COUNT_INVALID;                                                                                         \
-      }                                                                                                                            \
-      if (new_capacity > v->list_header.array_capacity) {                                                                          \
-        for (faster_indexing_t i = v->list_header.array_capacity; i < new_capacity; i++) {                                         \
-          *(faster_indexing_t *)(tmp + i) = i + 1;                                                                                 \
-        }                                                                                                                          \
-        *(faster_indexing_t *)(tmp + (new_capacity - 1)) = FASTER_ARRAY_COUNT_INVALID;                                             \
-      }                                                                                                                            \
-      v->list_header.next_free_index = (v->list == NULL) ? 0 : v->list_header.array_capacity;                                      \
-      v->list_header.array_capacity = new_capacity;                                                                                \
-      v->list_header.array_internal = (v->list == NULL) ? 0 : v->list_header.array_internal;                                       \
-      v->list = tmp;                                                                                                               \
-    }                                                                                                                              \
-    faster_indexing_t idx = v->list_header.next_free_index;                                                                        \
-    v->list_header.next_free_index = *(faster_indexing_t *)(v->list + idx);                                                        \
-    v->list_header.array_internal++;                                                                                               \
-    return idx;                                                                                                                    \
+  [[maybe_unused]] static inline faster_indexing_t type##_arr_get_next(type##_arr_ptr_t v) {                                       \
+    return _arr_get_next((_faster_default_array_ptr_t)v, sizeof(type));                                                            \
   }                                                                                                                                \
-  [[maybe_unused]] static void type##_arr_release(type##_arr_ptr_t v, const faster_indexing_t idx) {                               \
-    *(faster_indexing_t *)(v->list + idx) = v->list_header.next_free_index;                                                        \
-    v->list_header.next_free_index = idx;                                                                                          \
-    v->list_header.array_internal--;                                                                                               \
+  [[maybe_unused]] static inline void type##_arr_release(type##_arr_ptr_t v, const faster_indexing_t idx) {                        \
+    _arr_release((_faster_default_array_ptr_t)v, idx, sizeof(type));                                                               \
   }                                                                                                                                \
   static_assert(0 == 0)
 
 #define DECLARE_FAST_ARRAY_WITH_DYNAMIC_ALLOCATION(name, type, initial_capacity)                                                   \
   struct faster_array_for_##type##_t_s name = {_SUB_DECLARE_ARRAY_HEADER(initial_capacity), NULL}
+
+// array implementations
+struct _default_array_struct {
+  faster_array_header_t list_header;
+  faster_value_ptr list;
+} FASTER_ALIGNED;
+typedef struct _default_array_struct _faster_default_array_t;
+typedef struct _default_array_struct *_faster_default_array_ptr_t;
+void _arr_reset_and_free(_faster_default_array_ptr_t v, faster_indexing_t initial_capacity);
+faster_indexing_t _arr_count(_faster_default_array_ptr_t v);
+faster_indexing_t _arr_get_next(_faster_default_array_ptr_t v, size_t element_size);
+void _arr_release(_faster_default_array_ptr_t v, const faster_indexing_t idx, size_t element_size);
 
 // allocation helpers
 size_t faster_get_optimal_block_size(const size_t element_size, const size_t initial_count);
@@ -268,7 +169,7 @@ fchar_t *faster_strdup(const fchar_t *s);
 size_t faster_mb_to_unicode(const char *src, fchar_t *dest, size_t dest_size);
 size_t faster_unicode_to_mb(const fchar_t *src, char *dest, size_t dest_size);
 
-#ifdef DEBUG
+#ifdef NDEBUG
 #warning "Debug mode enabled"
 #endif
 

@@ -1,6 +1,6 @@
 flib = library(
     'faster',
-    ['ast.c', 'avl.c', 'core.c', 'is.c'],
+    ['aq.c', 'ast.c', 'avl.c', 'core.c', 'is.c', 'str.c'],
     include_directories: incdir,
 )
 executable(

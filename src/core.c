@@ -3,132 +3,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#if FASTER_UNICODE_SUPPORT != FASTER_UNICODE_SUPPORT_NONE
-// Convert multibyte string to Unicode (fchar_t)
-// return number of bytes written to dest
-size_t faster_mb_to_unicode(const char *src, fchar_t *_dest, size_t dest_size) {
-  if (!src || !_dest || dest_size == 0)
-    return 0;
-
-  mbstate_t state = {0};
-  const char *ptr = src;
-  const char *end = src + strlen(src);
-  size_t rc;
-  fchar_t *dest = _dest;
-  dest_size--; // leave space for null terminator
-  while ((rc = FASTER_UNICODE_MB_TO_UC_FUNC(dest, ptr, ((size_t)(end - ptr)) + 1, &state))) {
-    if (rc == (size_t)-3) {
-      // earlier surrogate pair
-      dest++;
-    } else if (rc == (size_t)-2) {
-      continue;
-    } else if (rc == (size_t)-1) {
-// error, store replacement character if possible and reset state
-#if FASTER_UNICODE_SUPPORT_ONE_BYTE == FASTER_UNICODE_SUPPORT
-      static const size_t _faster_invalid_character_len_runtime = sizeof(FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_VALUE) - 1;
-      if (dest + _faster_invalid_character_len_runtime < _dest + dest_size) {
-        strncpy((char *)dest, FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_VALUE, _faster_invalid_character_len_runtime);
-        dest += _faster_invalid_character_len_runtime;
-      }
-#else
-      *dest = FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_VALUE;
-      dest++;
-#endif
-      ptr++;
-      memset(&state, 0, sizeof(state));
-    } else {
-      // valid conversion
-      dest++;
-      ptr += rc;
-    }
-    if (((size_t)(dest - _dest)) >= dest_size) {
-      // buffer overflow, null terminate and exit
-      break;
-    }
-  }
-  *dest = '\0';
-  return (size_t)(dest - _dest);
-}
-
-// Convert Unicode (fchar_t) to multibyte string
-// return number of bytes written to dest
-size_t faster_unicode_to_mb(const fchar_t *src, char *dest, size_t dest_size) {
-  if (!src || !dest || dest_size == 0)
-    return 0;
-
-  mbstate_t ps = {0};
-  const fchar_t *ptr = src;
-  const fchar_t *end = src + faster_strlen(src);
-  size_t rc;
-  char *dest_start = dest;
-  dest_size--; // leave space for null terminator
-  while (ptr < end) {
-    rc = FASTER_UNICODE_UC_TO_MB_FUNC(dest, *(ptr++), &ps);
-    if (rc != (size_t)-1) {
-      dest += rc;
-    }
-    if (((size_t)(dest - dest_start)) >= dest_size) {
-      // buffer overflow, null terminate and exit
-      break;
-    }
-  }
-  *dest = '\0';
-  return (size_t)(dest - dest_start);
-}
-
-#else
-size_t faster_mb_to_unicode(const char *src, fchar_t *dest, size_t dest_size) {
-  size_t i = 0;
-  if (!dest || !src || dest_size == 0)
-    return 0;
-
-  for (; i < dest_size - 1 && src[i]; i++) {
-    dest[i] = (unsigned char)src[i]; // Explicit cast for non-ASCII
-  }
-  dest[i] = '\0';
-  return i;
-}
-
-size_t faster_unicode_to_mb(const fchar_t *src, char *dest, size_t dest_size) {
-  size_t i = 0;
-  if (!dest || !src || dest_size == 0)
-    return 0;
-
-  for (; i < dest_size - 1 && src[i]; i++) {
-    dest[i] = (char)(src[i] & 0xFF); // Truncate to byte
-  }
-  dest[i] = '\0';
-  return i;
-}
-#endif
-
-int faster_str_cmp_binary(const faster_str_t *str1, const faster_str_t *str2) {
-  if (str1->str_len > str2->str_len) {
-    return 1;
-  } else if (str1->str_len < str2->str_len) {
-    return -1;
-  }
-  return memcmp(str1->str_ptr, str2->str_ptr, FASTER_STRING_MEMORY_SIZE(str1->str_len));
-}
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wsign-conversion"
-size_t faster_strlen(const fchar_t *s) {
-  const fchar_t *p = s;
-  while (*p)
-    ++p;
-  return p - s; // no worries about overflow, as p is always greater than s
-}
-#pragma GCC diagnostic pop
-
-fchar_t *faster_strdup(const fchar_t *s) {
-  size_t len = faster_strlen(s);
-  fchar_t *dup = (fchar_t *)malloc((len + 1) * sizeof(fchar_t));
-  if (dup)
-    memcpy(dup, s, (len + 1) * sizeof(fchar_t));
-  return dup;
-}
-
 size_t faster_get_optimal_block_size(const size_t element_size, const size_t initial_count) {
   // Get system page size
   long ipage_size = sysconf(_SC_PAGESIZE);
@@ -175,3 +49,51 @@ faster_str_t faster_str_create(const fchar_t *null_terminated_str) {
   return str;
 }
 #pragma GCC diagnostic pop
+
+void _arr_reset_and_free(_faster_default_array_ptr_t v, faster_indexing_t initial_capacity) {
+  free(v->list);
+  v->list = NULL;
+  faster_array_header_t tmp = _SUB_DECLARE_ARRAY_HEADER(initial_capacity);
+  v->list_header = tmp;
+}
+
+faster_indexing_t _arr_count(_faster_default_array_ptr_t v) { return (v->list == NULL) ? 0 : v->list_header.array_internal; }
+
+faster_indexing_t _arr_get_next(_faster_default_array_ptr_t v, size_t element_size) {
+  if (v->list_header.next_free_index == FASTER_ARRAY_COUNT_INVALID) {
+    size_t new_size;
+    new_size = faster_get_optimal_block_size(
+        element_size,
+        v->list_header.array_capacity + ((v->list == NULL) ? v->list_header.array_internal
+                                                           : faster_get_optimal_growth_increment(v->list_header.array_capacity)));
+    void *tmp = (void *)FASTER_REALLOCATOR(v->list, new_size, NULL);
+    if (tmp == NULL) {
+      return FASTER_ARRAY_COUNT_INVALID;
+    }
+    faster_indexing_t new_capacity = _assume_within_range(new_size / element_size);
+    if (new_capacity == 0) {
+      return FASTER_ARRAY_COUNT_INVALID;
+    }
+    if (new_capacity > v->list_header.array_capacity) {
+      for (faster_indexing_t i = v->list_header.array_capacity; i < new_capacity; i++) {
+        *(faster_indexing_t *)(FASTER_INCEMENT_POINTER_BY_SIZED_ELEMENT(tmp, i, element_size)) = i + 1;
+      }
+      *(faster_indexing_t *)(FASTER_INCEMENT_POINTER_BY_SIZED_ELEMENT(tmp, (new_capacity - 1), element_size)) =
+          FASTER_ARRAY_COUNT_INVALID;
+    }
+    v->list_header.next_free_index = (v->list == NULL) ? 0 : v->list_header.array_capacity;
+    v->list_header.array_capacity = new_capacity;
+    v->list_header.array_internal = (v->list == NULL) ? 0 : v->list_header.array_internal;
+    v->list = (faster_value_ptr)tmp;
+  }
+  faster_indexing_t idx = v->list_header.next_free_index;
+  v->list_header.next_free_index = *(faster_indexing_t *)(FASTER_INCEMENT_POINTER_BY_SIZED_ELEMENT(v->list, idx, element_size));
+  v->list_header.array_internal++;
+  return idx;
+}
+
+void _arr_release(_faster_default_array_ptr_t v, const faster_indexing_t idx, size_t element_size) {
+  *(faster_indexing_t *)(FASTER_INCEMENT_POINTER_BY_SIZED_ELEMENT(v->list, idx, element_size)) = v->list_header.next_free_index;
+  v->list_header.next_free_index = idx;
+  v->list_header.array_internal--;
+}
