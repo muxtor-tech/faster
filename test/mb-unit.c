@@ -94,10 +94,10 @@ void test_invalid_sequences() {
 #elif FASTER_UNICODE_SUPPORT == FASTER_UNICODE_SUPPORT_ONE_BYTE
   // In one-byte mode, invalid bytes become - EF BF BD - � (replacement
   // character)
-  size_t tmp = strlen(FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_VALUE);
+  size_t tmp = strlen(FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_STRING_UTF8);
   assert(conv == (3 + 2 * tmp));
-  assert(memcmp(unicode_buf + 3 + 0, FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_VALUE, tmp) == 0);
-  assert(memcmp(unicode_buf + 3 + tmp, FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_VALUE, tmp) == 0);
+  assert(memcmp(unicode_buf + 3 + 0, FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_STRING_UTF8, tmp) == 0);
+  assert(memcmp(unicode_buf + 3 + tmp, FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_STRING_UTF8, tmp) == 0);
 #else
   // In two-byte and four-byte modes, invalid bytes become U+FFFD - �
   // (replacement character)

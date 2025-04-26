@@ -37,12 +37,13 @@
 
 // we don't need the c++ compatibility warning
 // the complaint about charx_t is a false positive
+#define FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_STRING_UTF8 "\xef\xbf\xbd"
+#define FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_VALUE 0xFFFD
 
 #if FASTER_UNICODE_SUPPORT == FASTER_UNICODE_SUPPORT_ONE_BYTE
 #include <uchar.h>
 #define FASTER_UNICODE_MB_TO_UC_FUNC mbrtoc8
 #define FASTER_UNICODE_UC_TO_MB_FUNC c8rtomb
-#define FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_VALUE u8"�"
 #define ASTER_TEXT(s) u8##s
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wc++-compat"
@@ -53,7 +54,6 @@ static_assert(sizeof(fchar_t) == 1, "unicode 8bit support not possible, fchar_t 
 #include <uchar.h>
 #define FASTER_UNICODE_MB_TO_UC_FUNC mbrtoc16
 #define FASTER_UNICODE_UC_TO_MB_FUNC c16rtomb
-#define FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_VALUE 0xFFFD
 #define ASTER_TEXT(s) u##s
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wc++-compat"
@@ -64,7 +64,6 @@ static_assert(sizeof(fchar_t) >= 2, "unicode 16bit support not possible, fchar_t
 #include <uchar.h>
 #define FASTER_UNICODE_MB_TO_UC_FUNC mbrtoc32
 #define FASTER_UNICODE_UC_TO_MB_FUNC c32rtomb
-#define FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_VALUE 0xFFFD
 #define ASTER_TEXT(s) U##s
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wc++-compat"

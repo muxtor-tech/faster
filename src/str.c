@@ -22,9 +22,9 @@ size_t faster_mb_to_unicode(const char *src, fchar_t *_dest, size_t dest_size) {
     } else if (rc == (size_t)-1) {
 // error, store replacement character if possible and reset state
 #if FASTER_UNICODE_SUPPORT_ONE_BYTE == FASTER_UNICODE_SUPPORT
-      static const size_t _faster_invalid_character_len_runtime = sizeof(FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_VALUE) - 1;
+      static const size_t _faster_invalid_character_len_runtime = sizeof(FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_STRING_UTF8) - 1;
       if (dest + _faster_invalid_character_len_runtime < _dest + dest_size) {
-        strncpy((char *)dest, FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_VALUE, _faster_invalid_character_len_runtime);
+        strncpy((char *)dest, FASTER_UNICODE_SUPPORT_INVALID_CHARACTER_STRING_UTF8, _faster_invalid_character_len_runtime);
         dest += _faster_invalid_character_len_runtime;
       }
 #else
