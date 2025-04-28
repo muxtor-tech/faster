@@ -1,8 +1,6 @@
 #include "aster/faster_ht.h"
 #include <stddef.h>
 
-static const faster_ht_key_data_t FASTER_HT_KEY_NULL = {FASTER_INVALID_VALUE_PTR, 0};
-
 static inline bool _faster_ht_keys_equal(faster_ht_key_data_ptr_t key1, faster_ht_key_data_ptr_t key2) {
   if (key1->len != key2->len) {
     return false;
