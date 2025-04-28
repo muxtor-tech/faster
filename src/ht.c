@@ -46,16 +46,13 @@ static bool _faster_ht_resize_and_rehash(faster_ht_ptr_t ht, faster_indexing_t r
       faster_indexing_t list_index = ht->entries[i].list_ref;
       // for all elements in the list, place them in the new table
       while (list_index != FASTER_ARRAY_INDEX_INVALID) {
-        // read element data
-        faster_hash_value_t hv = linked_entries_table_ref->list[list_index].hash;
-        faster_ht_key_data_t key = linked_entries_table_ref->list[list_index].key;
-        faster_value_ptr value = linked_entries_table_ref->list[list_index].value;
-        faster_indexing_t list_index_next = linked_entries_table_ref->list[list_index].next;
-        // release the old list element
-        faster_ht_entry_linked_t_arr_release(linked_entries_table_ref, list_index);
-        // emplace the new element in the new table
-        size_t new_index = hv % new_capacity;
-        faster_indexing_t new_list_index = _fht_create_list_element(ht, hv, &key, value);
+        // point old element data
+        faster_ht_entry_linked_t *hted = linked_entries_table_ref->list + list_index;
+        // emplace the new element in the new list
+        size_t new_index = hted->hash % new_capacity;
+        faster_indexing_t new_list_index = list_index;
+        list_index = hted->next;
+        hted->next = FASTER_ARRAY_INDEX_INVALID;
         if (new_list_index == FASTER_ARRAY_INDEX_INVALID) {
           free(new_entries);
           return false;
@@ -68,8 +65,6 @@ static bool _faster_ht_resize_and_rehash(faster_ht_ptr_t ht, faster_indexing_t r
           new_entries[new_index].list_ref = new_list_index;
           linked_entries_table_ref->list[new_list_index].next = list_head;
         }
-        // next element
-        list_index = list_index_next;
       }
     }
   }
@@ -77,7 +72,6 @@ static bool _faster_ht_resize_and_rehash(faster_ht_ptr_t ht, faster_indexing_t r
   free(ht->entries);
   ht->entries = new_entries;
   ht->capacity = new_capacity;
-
   ht->next_grow_at = (ht->capacity * 3) / 4;
   ht->next_shrink_at = (ht->capacity / 4);
 
@@ -116,17 +110,7 @@ faster_error_code_t faster_ht_set(faster_ht_ptr_t ht, faster_ht_key_data_ptr_t k
   }
   faster_hash_value_t hash = ht->hash_func(key);
   faster_indexing_t hash_index = hash % ht->capacity;
-  // no list - create
-  if (ht->entries[hash_index].list_ref == FASTER_ARRAY_INDEX_INVALID) {
-    faster_indexing_t new_list_index = _fht_create_list_element(ht, hash, key, value);
-    if (new_list_index == FASTER_ARRAY_INDEX_INVALID) {
-      return FAST_ERROR_MEMORY_ALLOCATION_FAILED;
-    }
-    ht->entries[hash_index].list_ref = new_list_index;
-    ht->elements++;
-    return FAST_ERROR_NONE;
-  }
-  // list exists - seek for the key
+  // list could exist - seek for the key
   faster_indexing_t list_index = ht->entries[hash_index].list_ref;
   while (list_index != FASTER_ARRAY_INDEX_INVALID) {
     if (_faster_ht_keys_equal(&linked_entries_table_ref->list[list_index].key, key)) {
