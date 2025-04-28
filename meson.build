@@ -7,4 +7,3 @@ project(
 incdir = include_directories('include')
 subdir('test')
 subdir('src')
-
