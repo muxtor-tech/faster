@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
   srand(0);
 
   // fill and rinse several times
-  for (int i = 0; i < 3; i++) {
+  for (int loop = 0; loop < 3; loop++) {
     // insertion
     int insertions = 0;
     start_time = clock();
@@ -124,6 +124,13 @@ int main(int argc, char *argv[]) {
       sprintf(str_ptr, "key%ld", random_number);
       faster_mb_to_unicode(str_ptr, aster_text, 64);
       faster_ht_key_data_t key = {managed_strdup(aster_text), faster_str_bytelen(aster_text)};
+      // table should be empty
+      faster_value_ptr value = faster_ht_get(&ht, &key);
+      if (value != FASTER_INVALID_VALUE_PTR) {
+        printf("Found non-empty key: %s %ld\n", str_ptr, (long)value);
+        faster_ht_free(&ht);
+        return -1;
+      }
       if (faster_ht_set(&ht, &key, (faster_value_ptr)random_number) != FAST_ERROR_NONE) {
         printf("Failed to insert key: %s\n", str_ptr);
         faster_ht_free(&ht);
@@ -188,63 +195,68 @@ int main(int argc, char *argv[]) {
     }
 
     // removal with pre and post checks
-    faster_indexing_t removal = 0;
-    faster_indexing_t found_pre_removal = 0;
-    faster_indexing_t found_post_removal = 0;
-    clock_t rem_start_time = clock();
-    char test[64];
-    for (int i = 0; i < generation / 10; i++) {
-      intptr_t random_number = i + 1; // rand() % generation;
-      sprintf(str_ptr, "key%ld", random_number);
-      faster_mb_to_unicode(str_ptr, aster_text, 64);
-      faster_ht_key_data_t key = {managed_strdup(aster_text), faster_str_bytelen(aster_text)};
-      faster_unicode_to_mb(key.ptr, test, 64);
-      if (strcmp(str_ptr, test) != 0) {
-        printf("Failed to convert key: %s %s\n", str_ptr, test);
-        return -1;
-      }
-      faster_value_ptr pvalue = faster_ht_get(&ht, &key);
-      if (pvalue != FASTER_INVALID_VALUE_PTR) {
-        found_pre_removal++;
-      } else {
-        printf("Not found an expected key: %s %ld\n", str_ptr, (long)pvalue);
-        return -1;
-      }
-      faster_error_code_t updateec = faster_ht_set(&ht, &key, (faster_value_ptr)pvalue + 1);
-      if (updateec != FAST_ERROR_NONE) {
-        printf("Failed to update key: %s %ld\n", str_ptr, (long)pvalue);
-        return -1;
-      }
-      faster_value_ptr pvalue2 = faster_ht_get(&ht, &key);
-      if (pvalue2 != (faster_value_ptr)pvalue + 1) {
-        printf("Failed to update key: %s %ld\n", str_ptr, (long)pvalue);
-        return -1;
-      }
-      faster_error_code_t value = faster_ht_remove(&ht, &key);
-      if (value == FAST_ERROR_NONE) {
-        removal++;
-      } else {
-        printf("Failed to remove key: %s %ls %ld\n", str_ptr, (wchar_t *)aster_text, (long)pvalue);
-        return -1;
-      }
-      faster_value_ptr povalue = faster_ht_get(&ht, &key);
-      if (povalue != FASTER_INVALID_VALUE_PTR) {
-        printf("Found non-existing key: %s %ld\n", str_ptr, (long)povalue);
-        found_post_removal++;
-        return -1;
-      }
-    }
-    clock_t rem_end_time = clock();
-    double avg_rem_time = ((double)(rem_end_time - rem_start_time) / CLOCKS_PER_SEC) / (generation / 10);
-    printf("Average find and removal time: %f useconds\n", avg_rem_time * 1000000);
-    printf("Found %u keys pre-removal\n", found_pre_removal);
-    if (removal == insertions) {
-      printf("(needed %u) At least %u keys removed from hash\n", insertions, removal);
+    if (loop == 1) {
+      // bulk removal
+      faster_ht_clear(&ht);
     } else {
-      printf("Not enough (only %u vs %u) keys removed from hash\n", removal, insertions);
-      printf("Hash table is not empty\n");
-      printf("Elements: %u\n", ht.elements);
-      return -1;
+      faster_indexing_t removal = 0;
+      faster_indexing_t found_pre_removal = 0;
+      faster_indexing_t found_post_removal = 0;
+      clock_t rem_start_time = clock();
+      char test[64];
+      for (int i = 0; i < generation / 10; i++) {
+        intptr_t random_number = i + 1; // rand() % generation;
+        sprintf(str_ptr, "key%ld", random_number);
+        faster_mb_to_unicode(str_ptr, aster_text, 64);
+        faster_ht_key_data_t key = {managed_strdup(aster_text), faster_str_bytelen(aster_text)};
+        faster_unicode_to_mb(key.ptr, test, 64);
+        if (strcmp(str_ptr, test) != 0) {
+          printf("Failed to convert key: %s %s\n", str_ptr, test);
+          return -1;
+        }
+        faster_value_ptr pvalue = faster_ht_get(&ht, &key);
+        if (pvalue != FASTER_INVALID_VALUE_PTR) {
+          found_pre_removal++;
+        } else {
+          printf("Not found an expected key: %s %ld\n", str_ptr, (long)pvalue);
+          return -1;
+        }
+        faster_error_code_t updateec = faster_ht_set(&ht, &key, (faster_value_ptr)pvalue + 1);
+        if (updateec != FAST_ERROR_NONE) {
+          printf("Failed to update key: %s %ld\n", str_ptr, (long)pvalue);
+          return -1;
+        }
+        faster_value_ptr pvalue2 = faster_ht_get(&ht, &key);
+        if (pvalue2 != (faster_value_ptr)pvalue + 1) {
+          printf("Failed to update key: %s %ld\n", str_ptr, (long)pvalue);
+          return -1;
+        }
+        faster_error_code_t value = faster_ht_remove(&ht, &key);
+        if (value == FAST_ERROR_NONE) {
+          removal++;
+        } else {
+          printf("Failed to remove key: %s %ls %ld\n", str_ptr, (wchar_t *)aster_text, (long)pvalue);
+          return -1;
+        }
+        faster_value_ptr povalue = faster_ht_get(&ht, &key);
+        if (povalue != FASTER_INVALID_VALUE_PTR) {
+          printf("Found non-existing key: %s %ld\n", str_ptr, (long)povalue);
+          found_post_removal++;
+          return -1;
+        }
+      }
+      clock_t rem_end_time = clock();
+      double avg_rem_time = ((double)(rem_end_time - rem_start_time) / CLOCKS_PER_SEC) / (generation / 10);
+      printf("Average find and removal time: %f useconds\n", avg_rem_time * 1000000);
+      printf("Found %u keys pre-removal\n", found_pre_removal);
+      if (removal == insertions) {
+        printf("(needed %u) At least %u keys removed from hash\n", insertions, removal);
+      } else {
+        printf("Not enough (only %u vs %u) keys removed from hash\n", removal, insertions);
+        printf("Hash table is not empty\n");
+        printf("Elements: %u\n", ht.elements);
+        return -1;
+      }
     }
   }
 

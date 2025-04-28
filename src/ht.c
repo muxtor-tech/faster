@@ -151,6 +151,9 @@ faster_error_code_t faster_ht_set(faster_ht_ptr_t ht, faster_ht_key_data_ptr_t k
 }
 
 faster_value_ptr faster_ht_get(faster_ht_ptr_t ht, faster_ht_key_data_ptr_t key) {
+  if (ht->capacity == 0 || ht->elements == 0) {
+    return FASTER_INVALID_VALUE_PTR;
+  }
   faster_hash_value_t hash = ht->hash_func(key);
   faster_indexing_t hash_index = hash % ht->capacity;
   // list "exists" - empty or otherwise
@@ -165,6 +168,9 @@ faster_value_ptr faster_ht_get(faster_ht_ptr_t ht, faster_ht_key_data_ptr_t key)
 }
 
 faster_error_code_t faster_ht_remove(faster_ht_ptr_t ht, faster_ht_key_data_ptr_t key) {
+  if (ht->capacity == 0 || ht->elements == 0) {
+    return FAST_ERROR_HT_KEY_NOT_FOUND;
+  }
   faster_ht_entry_linked_t_arr_ptr_t linked_entries_table_ref = &ht->entries_linked;
   faster_hash_value_t hash = ht->hash_func(key);
   faster_indexing_t hash_index = hash % ht->capacity;
