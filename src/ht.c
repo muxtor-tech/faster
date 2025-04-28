@@ -42,8 +42,8 @@ static bool _faster_ht_resize_and_rehash(faster_ht_ptr_t ht, faster_indexing_t r
   memset(new_entries, 0xff, new_size);
   // rehashing
   for (size_t i = 0; i < ht->capacity; i++) {
-    if (ht->entries[i].list_ref != FASTER_ARRAY_INDEX_INVALID) {
-      faster_indexing_t list_index = ht->entries[i].list_ref;
+    if (ht->entries[i] != FASTER_ARRAY_INDEX_INVALID) {
+      faster_indexing_t list_index = ht->entries[i];
       // for all elements in the list, place them in the new table
       while (list_index != FASTER_ARRAY_INDEX_INVALID) {
         // point old element data
@@ -57,12 +57,12 @@ static bool _faster_ht_resize_and_rehash(faster_ht_ptr_t ht, faster_indexing_t r
           free(new_entries);
           return false;
         }
-        if (new_entries[new_index].list_ref == FASTER_ARRAY_INDEX_INVALID) {
-          new_entries[new_index].list_ref = new_list_index;
+        if (new_entries[new_index] == FASTER_ARRAY_INDEX_INVALID) {
+          new_entries[new_index] = new_list_index;
         } else {
           // add to the list (at head)
-          faster_indexing_t list_head = new_entries[new_index].list_ref;
-          new_entries[new_index].list_ref = new_list_index;
+          faster_indexing_t list_head = new_entries[new_index];
+          new_entries[new_index] = new_list_index;
           linked_entries_table_ref->list[new_list_index].next = list_head;
         }
       }
@@ -111,7 +111,7 @@ faster_error_code_t faster_ht_set(faster_ht_ptr_t ht, faster_ht_key_data_ptr_t k
   faster_hash_value_t hash = ht->hash_func(key);
   faster_indexing_t hash_index = hash % ht->capacity;
   // list could exist - seek for the key
-  faster_indexing_t list_index = ht->entries[hash_index].list_ref;
+  faster_indexing_t list_index = ht->entries[hash_index];
   while (list_index != FASTER_ARRAY_INDEX_INVALID) {
     if (_faster_ht_keys_equal(&linked_entries_table_ref->list[list_index].key, key)) {
       // element already exists, update the value
@@ -125,9 +125,9 @@ faster_error_code_t faster_ht_set(faster_ht_ptr_t ht, faster_ht_key_data_ptr_t k
   if (new_list_index == FASTER_ARRAY_INDEX_INVALID) {
     return FAST_ERROR_MEMORY_ALLOCATION_FAILED;
   }
-  list_index = ht->entries[hash_index].list_ref;
+  list_index = ht->entries[hash_index];
   linked_entries_table_ref->list[new_list_index].next = list_index;
-  ht->entries[hash_index].list_ref = new_list_index;
+  ht->entries[hash_index] = new_list_index;
   ht->elements++;
   return FAST_ERROR_NONE;
 }
@@ -139,7 +139,7 @@ faster_value_ptr faster_ht_get(faster_ht_ptr_t ht, faster_ht_key_data_ptr_t key)
   faster_hash_value_t hash = ht->hash_func(key);
   faster_indexing_t hash_index = hash % ht->capacity;
   // list "exists" - empty or otherwise
-  faster_indexing_t list_index = ht->entries[hash_index].list_ref;
+  faster_indexing_t list_index = ht->entries[hash_index];
   while (list_index != FASTER_ARRAY_INDEX_INVALID) {
     if (_faster_ht_keys_equal(&ht->entries_linked.list[list_index].key, key)) {
       return ht->entries_linked.list[list_index].value;
@@ -156,7 +156,7 @@ faster_error_code_t faster_ht_remove(faster_ht_ptr_t ht, faster_ht_key_data_ptr_
   faster_ht_entry_linked_t_arr_ptr_t linked_entries_table_ref = &ht->entries_linked;
   faster_hash_value_t hash = ht->hash_func(key);
   faster_indexing_t hash_index = hash % ht->capacity;
-  faster_indexing_t list_head = ht->entries[hash_index].list_ref;
+  faster_indexing_t list_head = ht->entries[hash_index];
   // no list
   if (list_head == FASTER_ARRAY_INDEX_INVALID) {
     return FAST_ERROR_HT_KEY_NOT_FOUND;
@@ -169,7 +169,7 @@ faster_error_code_t faster_ht_remove(faster_ht_ptr_t ht, faster_ht_key_data_ptr_
       // found the key, apply the removal
       if (list_index == list_head) {
         // first element in the list
-        ht->entries[hash_index].list_ref = linked_entries_table_ref->list[list_index].next;
+        ht->entries[hash_index] = linked_entries_table_ref->list[list_index].next;
       } else {
         // not first element in the list
         linked_entries_table_ref->list[prev_index].next = linked_entries_table_ref->list[list_index].next;
@@ -192,7 +192,7 @@ faster_error_code_t faster_ht_remove(faster_ht_ptr_t ht, faster_ht_key_data_ptr_
 
 void faster_ht_clear(faster_ht_ptr_t ht) {
   for (size_t i = 0; i < ht->capacity; i++) {
-    ht->entries[i].list_ref = FASTER_ARRAY_INDEX_INVALID;
+    ht->entries[i] = FASTER_ARRAY_INDEX_INVALID;
   }
   ht->elements = 0;
   faster_ht_entry_linked_t_arr_reset_and_free(&ht->entries_linked, ht->requested_capacity);

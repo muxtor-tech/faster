@@ -15,10 +15,6 @@ struct faster_ht_key_data_s {
 typedef struct faster_ht_key_data_s faster_ht_key_data_t;
 typedef struct faster_ht_key_data_s *faster_ht_key_data_ptr_t;
 
-struct faster_ht_entry_s {
-  faster_indexing_t list_ref;
-} FASTER_ALIGNED;
-
 struct faster_ht_entry_linked_s {
   faster_hash_value_t hash;
   faster_ht_key_data_t key;
@@ -27,8 +23,8 @@ struct faster_ht_entry_linked_s {
 } FASTER_ALIGNED;
 typedef struct faster_ht_entry_linked_s faster_ht_entry_linked_t;
 
-typedef struct faster_ht_entry_s faster_ht_entry_t;
-typedef struct faster_ht_entry_s *faster_ht_entry_ptr_t;
+typedef faster_indexing_t faster_ht_entry_t;
+typedef faster_indexing_t *faster_ht_entry_ptr_t;
 
 DEFINE_FAST_ARRAY_WITH_DYNAMIC_ALLOCATION(faster_ht_entry_linked_t);
 
