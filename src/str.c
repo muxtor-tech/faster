@@ -118,6 +118,8 @@ size_t faster_strlen(const fchar_t *s) {
 }
 #pragma GCC diagnostic pop
 
+size_t faster_str_bytelen(const fchar_t *s) { return faster_strlen(s) * sizeof(fchar_t); }
+
 fchar_t *faster_strdup(const fchar_t *s) {
   size_t len = faster_strlen(s);
   fchar_t *dup = (fchar_t *)malloc((len + 1) * sizeof(fchar_t));

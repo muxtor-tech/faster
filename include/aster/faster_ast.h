@@ -30,20 +30,6 @@ enum faster_token_type_e {
 };
 typedef enum faster_token_type_e faster_token_type_t;
 
-enum faster_error_codes_e {
-  FAST_AST_ERROR_NONE = 0x00,
-  FAST_AST_ERROR_INVALID_TOKEN,
-  FAST_AST_ERROR_INVALID_NODE,
-  FAST_AST_ERROR_INVALID_CONTEXT,
-  FAST_AST_ERROR_INVALID_STATE,
-  FAST_AST_ERROR_INVALID_VALUE,
-  FAST_AST_ERROR_INVALID_STRING,
-  FAST_AST_ERROR_INVALID_OPERATOR,
-  FAST_AST_ERROR_INVALID_LIST,
-  FAST_AST_ERROR_INVALID_PARAMETER,
-};
-typedef enum faster_error_codes_e faster_error_code_t;
-
 enum faster_ast_state_e {
   FAST_AST_STATE_NOT_INITIALIZED = 0x00,
   FAST_AST_STATE_EMPTY,

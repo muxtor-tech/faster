@@ -172,6 +172,38 @@ test(
     ),
 )
 
+# hash table tests
+test(
+    'ht-test-large',
+    executable(
+        'test-binary-6',
+        ['ht-unit.c', '../src/str.c', '../src/ht.c', '../src/core.c'],
+        c_args: ['-O0', '-g3'],
+        include_directories: incdir,
+        override_options: ['warning_level=0'],
+    ),
+)
+test(
+    'o-ht-test-large',
+    executable(
+        'test-binary-6o',
+        ['ht-unit.c', '../src/str.c', '../src/ht.c', '../src/core.c'],
+        c_args: ['-O3', '-g0'],
+        include_directories: incdir,
+        override_options: ['warning_level=0'],
+    ),
+)
+test(
+    'o-ht-test-large-non-unicode',
+    executable(
+        'test-binary-6onu',
+        ['ht-unit.c', '../src/str.c', '../src/ht.c', '../src/core.c'],
+        c_args: ['-O3', '-g0', '-DFASTER_UNICODE_SUPPORT=0'],
+        include_directories: incdir,
+        override_options: ['warning_level=0'],
+    ),
+)
+
 # non-parallel tests
 test(
     'atomic-queue',

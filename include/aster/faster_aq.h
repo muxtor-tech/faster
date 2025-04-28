@@ -1,3 +1,6 @@
+#ifndef FASTER_AQ_H
+#define FASTER_AQ_H
+
 #include "aster/faster_core.h"
 
 #include <stdatomic.h>
@@ -72,3 +75,5 @@ int _aq_is_empty(_faster_atomic_fifo_queue_t *q);
 int _aq_is_full(_faster_atomic_fifo_queue_t *q);
 int _aq_enqueue(_faster_atomic_fifo_queue_t *q, const faster_value_ptr item);
 int _aq_dequeue(_faster_atomic_fifo_queue_t *q, const faster_value_ptr item);
+
+#endif // FASTER_AQ_H

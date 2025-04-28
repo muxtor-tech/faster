@@ -57,7 +57,7 @@ typedef enum faster_tokenizer_state_e faster_tokenizer_state_t;
 
 typedef faster_error_code_t (*faster_operator_function_definition_t)(faster_value_ptr lval, faster_value_ptr rval,
                                                                      faster_value_ptr *result);
-typedef faster_operator_function_definition_t *faster_operator_function_definition_ptr_t;
+typedef faster_operator_function_definition_t faster_operator_function_definition_ptr_t;
 
 enum faster_operator_associativity_e {
   FAST_OPERATOR_ASSOCIATIVITY_UNDEFINED = 0x00,
@@ -256,6 +256,21 @@ static inline bool _are_all_in(const fchar_t *tested, const int ctest_len, const
   return true;
 }
 
+static inline faster_indexing_t _store_next_token(faster_ast_ptr_t ast, faster_token_ptr_t token) {
+  faster_indexing_t token_id = faster_token_t_arr_get_next(&ast->token_list);
+  if (token_id != FASTER_ARRAY_COUNT_INVALID) {
+    memcpy(&ast->token_list.list[token_id], token, sizeof(faster_token_t));
+  }
+  return token_id;
+}
+
+static inline faster_indexing_t _create_store_token(faster_ast_ptr_t ast, faster_token_type_t token_type, const fchar_t *str_ptr,
+                                                    const faster_system_indexing_t str_start,
+                                                    const faster_system_indexing_t str_len) {
+  faster_token_t new_token = {.token_type = token_type, .token_str = {.str_len = str_len, .str_ptr = str_ptr + str_start}};
+  return _store_next_token(ast, &new_token);
+}
+
 faster_error_code_t faster_tokenize(faster_ast_ptr_t ast, const faster_str_ptr_t str) {
   if (ast == NULL || ast->runtime_state.state != FAST_AST_STATE_EMPTY) {
     return FAST_AST_ERROR_INVALID_STATE;
@@ -269,8 +284,8 @@ faster_error_code_t faster_tokenize(faster_ast_ptr_t ast, const faster_str_ptr_t
   faster_system_indexing_t token_current_pos = 0;
   faster_system_indexing_t str_len = str->str_len;
   faster_value_str_ptr_holder_t str_ptr = str->str_ptr;
-  while (token_current_pos < str_len) {
-    fchar_t current_char = str_ptr[token_current_pos];
+  while (token_current_pos <= str_len) {
+    fchar_t current_char = (token_current_pos == str_len) ? '\0' : str_ptr[token_current_pos];
     switch (state) {
     case FAST_TOKENIZER_STATE_FLAT:
       if (_is_any_of(current_char, _space_chars, _space_chars_len)) {
@@ -280,13 +295,9 @@ faster_error_code_t faster_tokenize(faster_ast_ptr_t ast, const faster_str_ptr_t
         state = FAST_TOKENIZER_STATE_STRING;
         token_starting_pos = token_current_pos + 1;
       } else if (current_char == '(') {
-        faster_token_t new_token = {.token_type = FAST_TOKEN_TYPE_ORP,
-                                    .token_str = {.str_len = 1, .str_ptr = str_ptr + token_current_pos}};
-        memcpy(&ast->token_list.list[faster_token_t_arr_get_next(&ast->token_list)], &new_token, sizeof(faster_token_t));
+        _create_store_token(ast, FAST_TOKEN_TYPE_ORP, str_ptr, token_current_pos, 1);
       } else if (current_char == ')') {
-        faster_token_t new_token = {.token_type = FAST_TOKEN_TYPE_CRP,
-                                    .token_str = {.str_len = 1, .str_ptr = str_ptr + token_current_pos}};
-        memcpy(&ast->token_list.list[faster_token_t_arr_get_next(&ast->token_list)], &new_token, sizeof(faster_token_t));
+        _create_store_token(ast, FAST_TOKEN_TYPE_OCP, str_ptr, token_current_pos, 1);
       } else if (current_char >= '0' && current_char <= '9') {
         state = FAST_TOKENIZER_STATE_NUMBER;
         token_starting_pos = token_current_pos;
@@ -301,7 +312,7 @@ faster_error_code_t faster_tokenize(faster_ast_ptr_t ast, const faster_str_ptr_t
         faster_token_t new_token = {
             .token_type = FAST_TOKEN_TYPE_STRING,
             .token_str = {.str_len = token_current_pos - token_starting_pos, .str_ptr = &str_ptr[token_current_pos]}};
-        memcpy(&ast->token_list.list[faster_token_t_arr_get_next(&ast->token_list)], &new_token, sizeof(faster_token_t));
+        _store_next_token(ast, &new_token);
         state = FAST_TOKENIZER_STATE_FLAT;
       }
       break;

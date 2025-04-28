@@ -37,9 +37,15 @@ size_t faster_get_optimal_block_size(const size_t element_size, const size_t ini
 }
 
 size_t faster_get_optimal_growth_increment(const size_t current_size) {
-  // Growth factor between 1.5 and 2 is generally efficient
-  // Using 1.5 as a compromise between memory usage and reallocation frequency
-  return (current_size / 2) + 1;
+  if (current_size < 16) {
+    return 16;
+  } else if (current_size < 128) {
+    return 32;
+  } else if (current_size < 1024) {
+    return 64;
+  } else {
+    return current_size / 2;
+  }
 }
 
 #pragma GCC diagnostic push

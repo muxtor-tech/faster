@@ -4,11 +4,20 @@
 #include "aster/faster_avl.h"
 #include <time.h>
 
-int main() {
+int main(int argc, char *argv[]) {
   DECLARE_AVL_NODE_TREE_WITH_DYNAMIC_ALLOCATION(avl_tree, 256);
 
   srand(0);
   int generation = RAND_MAX / 1000;
+
+  if (argc > 1) {
+    generation = atoi(argv[1]);
+    if (generation <= 0) {
+      printf("Invalid argument, using default generation of %d\n", generation);
+      generation = RAND_MAX / 1000;
+    }
+  }
+
   faster_indexing_t insertions = 0;
   clock_t start_time = clock();
   for (int i = 0; i < (generation / 10); i++) {
