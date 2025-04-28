@@ -28,7 +28,7 @@ faster_indexing_t _fht_create_list_element(faster_ht_ptr_t ht, faster_hash_value
 }
 
 static bool _faster_ht_resize_and_rehash(faster_ht_ptr_t ht, faster_indexing_t requested_capacity) {
-  volatile faster_ht_entry_linked_t_arr_ptr_t linked_entries_table_ref = &ht->entries_linked;
+  faster_ht_entry_linked_t_arr_ptr_t linked_entries_table_ref = &ht->entries_linked;
   faster_ht_entry_ptr_t new_entries = NULL;
   size_t new_capacity = requested_capacity;
   if (new_capacity < ht->requested_capacity) {
@@ -109,20 +109,8 @@ void faster_ht_free(faster_ht_ptr_t ht) {
   ht->next_shrink_at = 0;
 }
 
-enum _fth_helper_values {
-  _FTH_NOT_FOUND_AT_ALL_POINTING_AT_FREE = 0,
-  _FTH_FOUND_MATCH_POINTING_DIRECTLY = 1,
-  _FTH_FOUND_LAST_WITH_SAME_HASH_POINTING_PREV_INDEX_EMPTY = 2,
-};
-typedef enum _fth_helper_values _fth_helper_values_t;
-
 faster_error_code_t faster_ht_set(faster_ht_ptr_t ht, faster_ht_key_data_ptr_t key, faster_value_ptr value) {
   faster_ht_entry_linked_t_arr_ptr_t linked_entries_table_ref = &ht->entries_linked;
-  if (ht->capacity == 0) {
-    if (!_faster_ht_resize_and_rehash(ht, ht->requested_capacity)) {
-      return FAST_ERROR_MEMORY_ALLOCATION_FAILED;
-    }
-  }
   if (ht->elements >= ht->next_grow_at) {
     if (!_faster_ht_resize_and_rehash(ht, ht->capacity + faster_get_optimal_growth_increment(ht->capacity))) {
       return FAST_ERROR_MEMORY_ALLOCATION_FAILED;
@@ -130,13 +118,17 @@ faster_error_code_t faster_ht_set(faster_ht_ptr_t ht, faster_ht_key_data_ptr_t k
   }
   faster_hash_value_t hash = ht->hash_func(key);
   faster_indexing_t hash_index = hash % ht->capacity;
-  // no list
+  // no list - create
   if (ht->entries[hash_index].list_ref == FASTER_ARRAY_INDEX_INVALID) {
-    ht->entries[hash_index].list_ref = _fht_create_list_element(ht, hash, key, value);
+    faster_indexing_t new_list_index = _fht_create_list_element(ht, hash, key, value);
+    if (new_list_index == FASTER_ARRAY_INDEX_INVALID) {
+      return FAST_ERROR_MEMORY_ALLOCATION_FAILED;
+    }
+    ht->entries[hash_index].list_ref = new_list_index;
     ht->elements++;
     return FAST_ERROR_NONE;
   }
-  // list exists
+  // list exists - seek for the key
   faster_indexing_t list_index = ht->entries[hash_index].list_ref;
   while (list_index != FASTER_ARRAY_INDEX_INVALID) {
     if (_faster_ht_keys_equal(&linked_entries_table_ref->list[list_index].key, key)) {
@@ -146,7 +138,7 @@ faster_error_code_t faster_ht_set(faster_ht_ptr_t ht, faster_ht_key_data_ptr_t k
     }
     list_index = linked_entries_table_ref->list[list_index].next;
   }
-  // add new element to the list
+  // key not in the list, so create a new list element at front (faster)
   faster_indexing_t new_list_index = _fht_create_list_element(ht, hash, key, value);
   if (new_list_index == FASTER_ARRAY_INDEX_INVALID) {
     return FAST_ERROR_MEMORY_ALLOCATION_FAILED;
@@ -196,6 +188,12 @@ faster_error_code_t faster_ht_remove(faster_ht_ptr_t ht, faster_ht_key_data_ptr_
       }
       faster_ht_entry_linked_t_arr_release(linked_entries_table_ref, list_index);
       ht->elements--;
+      if (ht->elements < ht->next_shrink_at) {
+        // shrink
+        if (!_faster_ht_resize_and_rehash(ht, ht->capacity - faster_get_optimal_growth_increment(ht->capacity))) {
+          return FAST_ERROR_MEMORY_ALLOCATION_FAILED;
+        }
+      }
       return FAST_ERROR_NONE;
     }
     prev_index = list_index;
@@ -208,8 +206,9 @@ void faster_ht_clear(faster_ht_ptr_t ht) {
   for (size_t i = 0; i < ht->capacity; i++) {
     ht->entries[i].list_ref = FASTER_ARRAY_INDEX_INVALID;
   }
-  faster_ht_entry_linked_t_arr_reset_and_free(&ht->entries_linked, 0);
   ht->elements = 0;
+  faster_ht_entry_linked_t_arr_reset_and_free(&ht->entries_linked, ht->requested_capacity);
+  _faster_ht_resize_and_rehash(ht, ht->requested_capacity);
 }
 
 // MurmurHash2, by Austin Appleby, taken from

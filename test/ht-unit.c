@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
   uint8_t test_hash[generation];
   int test_fill_percent = 75;
   int test_fill_size = sizeof(test_hash) * test_fill_percent / 100;
-  memset(test_hash, 0, sizeof(test_hash));
+  memset(test_hash, 0, generation);
 
   clock_t start_time = clock();
   for (int i = 0; i < test_fill_size; i++) {
