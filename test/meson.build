@@ -141,15 +141,16 @@ test(
         override_options: ['warning_level=0'],
     ),
 )
-test(
-    'o-avl-test-rem',
-    executable(
+avl_optimized_exec = executable(
         'test-binary-3o',
         ['avl-unit-3.c', '../src/str.c', '../src/avl.c', '../src/core.c'],
         c_args: ['-O3', '-g0'],
         include_directories: incdir,
         override_options: ['warning_level=0'],
-    ),
+)
+test(
+    'o-avl-test-rem',
+    avl_optimized_exec
 )
 test(
     'o-interned_strings',
@@ -173,6 +174,14 @@ test(
 )
 
 # hash table tests
+ht_optimized_exec = executable(
+        'test-binary-6o',
+        ['ht-unit.c', '../src/str.c', '../src/ht.c', '../src/core.c'],
+        c_args: ['-O3', '-g0'],
+        include_directories: incdir,
+        override_options: ['warning_level=0'],
+)
+
 test(
     'ht-test-large',
     executable(
@@ -185,13 +194,7 @@ test(
 )
 test(
     'o-ht-test-large',
-    executable(
-        'test-binary-6o',
-        ['ht-unit.c', '../src/str.c', '../src/ht.c', '../src/core.c'],
-        c_args: ['-O3', '-g0'],
-        include_directories: incdir,
-        override_options: ['warning_level=0'],
-    ),
+    ht_optimized_exec,
 )
 test(
     'o-ht-test-large-non-unicode',
@@ -225,5 +228,17 @@ test(
         include_directories: incdir,
         override_options: ['warning_level=0'],
     ),
+    is_parallel: false,
+)
+test(
+    'o-ht-test-million',
+    ht_optimized_exec,
+    args: ['8000000'],
+    is_parallel: false,
+)
+test(
+    'o-avl-test-million',
+    avl_optimized_exec,
+    args: ['8000000'],
     is_parallel: false,
 )
