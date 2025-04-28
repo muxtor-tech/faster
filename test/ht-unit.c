@@ -41,11 +41,12 @@ int main(int argc, char *argv[]) {
   uint8_t test_hash[generation];
   int test_fill_percent = 75;
   int test_fill_size = sizeof(test_hash) * test_fill_percent / 100;
-  memset(test_hash, 0, generation);
 
+  printf("RANDOM keys\n");
+  memset(test_hash, 0, generation);
   clock_t start_time = clock();
   for (int i = 0; i < test_fill_size; i++) {
-    sprintf(str_ptr, "%ukey", i);
+    sprintf(str_ptr, "%ukey", rand());
     faster_mb_to_unicode(str_ptr, aster_text, 64);
     faster_ht_key_data_t key = {aster_text, faster_str_bytelen(aster_text)};
     faster_hash_value_t hash = faster_ht_hash(&key);
@@ -58,11 +59,38 @@ int main(int argc, char *argv[]) {
   clock_t end_time = clock();
   double avg_hash_time = ((double)(end_time - start_time) / CLOCKS_PER_SEC) / (test_fill_size);
   printf("Average hash calculation time %f useconds for %u insertions \n", avg_hash_time * 1000000, test_fill_size);
-
   printf("Collisions: %d\n", collision_count);
   double collision_rate = (double)collision_count / sizeof(test_hash);
   printf("Collision rate: %f\n", collision_rate);
   if (collision_rate > 0.25) {
+    printf("Hash function has more than 25%% collisions\n");
+    // return -1;
+  } else {
+    printf("Hash function has acceptable collisions\n");
+  }
+
+  printf("SEQUENTIAL keys\n");
+  int scollision_count = 0;
+  memset(test_hash, 0, generation);
+  clock_t sstart_time = clock();
+  for (int i = 0; i < test_fill_size; i++) {
+    sprintf(str_ptr, "%ukey", i);
+    faster_mb_to_unicode(str_ptr, aster_text, 64);
+    faster_ht_key_data_t key = {aster_text, faster_str_bytelen(aster_text)};
+    faster_hash_value_t hash = faster_ht_hash(&key);
+    if (test_hash[hash % sizeof(test_hash)] == 0) {
+      test_hash[hash % sizeof(test_hash)] = 1;
+    } else {
+      scollision_count++;
+    }
+  }
+  clock_t send_time = clock();
+  double savg_hash_time = ((double)(send_time - sstart_time) / CLOCKS_PER_SEC) / (test_fill_size);
+  printf("Average hash calculation time %f useconds for %u insertions \n", savg_hash_time * 1000000, test_fill_size);
+  printf("Collisions: %d\n", scollision_count);
+  double scollision_rate = (double)scollision_count / sizeof(test_hash);
+  printf("Collision rate: %f\n", scollision_rate);
+  if (scollision_rate > 0.25) {
     printf("Hash function has more than 25%% collisions\n");
     // return -1;
   } else {
@@ -119,6 +147,7 @@ int main(int argc, char *argv[]) {
     // insertion
     int insertions = 0;
     start_time = clock();
+    clock_t max_sit = 0;
     for (int i = 0; i < (generation / 10); i++) {
       intptr_t random_number = i + 1; // rand() % generation;
       sprintf(str_ptr, "key%ld", random_number);
@@ -131,6 +160,7 @@ int main(int argc, char *argv[]) {
         faster_ht_free(&ht);
         return -1;
       }
+      clock_t sist = clock();
       if (faster_ht_set(&ht, &key, (faster_value_ptr)random_number) != FAST_ERROR_NONE) {
         printf("Failed to insert key: %s\n", str_ptr);
         faster_ht_free(&ht);
@@ -138,11 +168,15 @@ int main(int argc, char *argv[]) {
       } else {
         insertions++;
       }
+      clock_t siet = clock();
+      if (siet - sist > max_sit) {
+        max_sit = siet - sist;
+      }
     }
     end_time = clock();
     double avg_insertion_time = ((double)(end_time - start_time) / CLOCKS_PER_SEC) / (generation / 10);
     printf("Average insertion time: %f useconds for %u insertions \n", avg_insertion_time * 1000000, insertions);
-
+    printf("Max insertion time: %f useconds\n", ((double)max_sit / CLOCKS_PER_SEC) * 1000000);
     // lookup
     faster_indexing_t lookup = 0;
     clock_t seek_start_time = clock();
